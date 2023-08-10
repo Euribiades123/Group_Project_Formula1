@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Formula 1 Circuits Map</title>
+    <!-- Include Leaflet CSS and JS files -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <style>
+        /* Set the height of the map container to 100vh */
+        #map {
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <!-- Dropdown to choose the year -->
+        <label for="select-year">Select Year:</label>
+        <select id="select-year" onchange="getYearCircuits(this.value)">
+            <!-- Populate options with years from 1950 to 2022 -->
+    <script>
+        var selectYearElement = document.getElementById("select-year");
+        var currentYear = 2022;
+
+        for (var year = currentYear; year >= 1950; year--) {
+            var option = document.createElement("option");
+            option.value = year;
+            option.text = year;
+            selectYearElement.appendChild(option);
+        }
+    </script>
+        </select>
+        <button onclick="showTracksForYear()">Show Tracks</button>
+    </div>
+
+    <div id="map"></div>
+        
+    <script>
+        var map;
+        var circuitMarkers = [];
+        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png?lang=en', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        });
+
+        var cartoLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png');
+
+        var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+
+        map = L.map('map', {
+            layers: [osmLayer] // Set the default base layer
+        }).setView([0, 0], 3);
+
+        var baseLayers = {
+            'OpenStreetMap': osmLayer,
+            'Carto Light': cartoLayer,
+            'Satellite Imagery': satelliteLayer
+        };
+
+        L.control.layers(baseLayers).addTo(map);
+
+        // Function to add markers with pop-ups to the map
+        function addMarkersToMap(circuits) {
+            circuits.forEach(function(circuit) {
+                var marker = L.marker([circuit.lat, circuit.lng]).addTo(map);
+                
+                // Create the content for the popup
+                var popupContent = '<b>Name:</b> ' + circuit.name + '<br>' +
+                                   '<b>Location:</b> ' + circuit.location + '<br>' +
+                                   '<b>Country:</b> ' + circuit.country;
+                
+                marker.bindPopup(popupContent);
+                circuitMarkers.push(marker);
+            });
+        }
+
+        // Function to clear existing markers
+        function clearMarkers() {
+            circuitMarkers.forEach(function(marker) {
+                map.removeLayer(marker);
+            });
+            circuitMarkers = [];
+        }
+
+        // Fetch circuit data from Flask API and add markers to the map
+        fetch('/circuits')
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(circuits) {
+                addMarkersToMap(circuits);
+            })
+            .catch(function(error) {
+                console.error('Error fetching circuit data:', error);
+            });
+
+        // Function to change the map background
+        function changeMapBackground(background) {
+            var selectedLayer = baseLayers[background];
+            if (selectedLayer) {
+                map.eachLayer(function(layer) {
+                    if (layer instanceof L.TileLayer) {
+                        map.removeLayer(layer);
+                    }
+                });
+                selectedLayer.addTo(map);
+            }
+        }
+
+        // Function to fetch and display circuits based on selected year
+        function getYearCircuits(year) {
+            if (year) {
+                // Fetch circuits for the selected year
+                fetch(`/circuits/${year}`)
+                    .then(function(response) {
+                        return response.json();
+                    })
+                    .then(function(circuits) {
+                        // Clear existing markers
+                        clearMarkers();
+
+                        // Add markers for circuits raced in the selected year
+                        addMarkersToMap(circuits);
+                    })
+                    .catch(function(error) {
+                        console.error('Error fetching circuit data:', error);
+                    });
+            }
+        }
+        
+        //adding an image
+        var imageUrl = "https://cdn.shopify.com/s/files/1/1095/6418/products/F1-logo.png?v=1574506191";
+        var imageBounds = [[-60, -60], [-40, 20]];
+        var imageOverlay = L.imageOverlay(imageUrl, imageBounds).addTo(map);
+    </script>
+
+    <div>
+        <!-- Dropdown to choose the map background -->
+        <label for="map-background">Choose Map Background:</label>
+        <select id="map-background" onchange="changeMapBackground(this.value)">
+            <option value="osm">OpenStreetMap</option>
+            <option value="carto">Carto Light</option>
+            <option value="satellite">Satellite Imagery</option>
+        </select>
+    </div>
+</body>
+</html>
+
+
+
+
+
